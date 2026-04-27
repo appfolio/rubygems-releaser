@@ -10,38 +10,9 @@ on:
         default: '.'
 
 jobs:
-  release:
+  release-please:
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release-please.outputs[format('{0}--release_created', inputs.working_directory)] || steps.release-please.outputs.release_created }}
     steps:
       - name: Release Please
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release-please
-
-  publish:
-    runs-on: ubuntu-latest
-    needs: release
-    if: ${{ needs.release.outputs.release_created }}
-    defaults:
-      run:
-        working-directory: ${{ inputs.working_directory }}
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@a4aa98b93cab29d9b1101a6143fb8bce00e2eac4 # v2.7.1
-        with:
-          egress-policy: audit
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@0cb964fd540e0a24c900370abf38a33466142735 # v1.305.0
-        with:
-          working-directory: ${{ inputs.working_directory }}
-          bundler-cache: true
-          ruby-version: ruby
-      - name: Configure RubyGems credentials
-        uses: rubygems/configure-rubygems-credentials@bc6dd217f8a4f919d6835fcfefd470ef821f5c44 # v1.0.0
-      - name: Build and publish gem
-        run: |
-          bundle exec rake build
-          gem push pkg/*.gem
