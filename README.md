@@ -4,12 +4,11 @@ Reusable GitHub Actions workflows for publishing public gems to [RubyGems.org][r
 
 This workflow uses [Release Please][release-please] to automatically bump versions, generate changelogs, and publish new gem versions based on [Conventional Commits][conventional-commits].
 
-Three reusable workflows are provided:
+Two reusable workflows are provided:
 
 | Workflow | Trigger | Description |
 |----------|---------|-------------|
-| `release.yml` | `push` to default branch | Runs Release Please to create/update release PRs |
-| `publish.yml` | `release: published` | Builds and publishes the gem to RubyGems.org |
+| `release.yml` | `push` to default branch | Runs Release Please to create/update release PRs and publishes the gem when a release PR is merged |
 | `lint-commits.yml` | `pull_request` | Enforces Conventional Commits format on PRs |
 
 ## Installation
@@ -23,8 +22,12 @@ Before the workflow can publish your gem, you must register a trusted publisher 
 3. Fill in the form:
    - **Owner**: your GitHub organization or user (e.g., `appfolio`)
    - **Repository**: your gem's GitHub repository name (e.g., `my_gem`)
-   - **Workflow filename**: `publish.yml`
+   - **Workflow filename**: `release.yml`
    - **Environment**: *(leave blank)*
+
+If you are using a reusable workflow from a different repository (like this one), you must also fill in:
+   - **Workflow Repository Owner**: `appfolio`
+   - **Workflow Repository Name**: `rubygems-releaser`
 
 > [!NOTE]
 > Only existing gem owners on RubyGems.org can register trusted publishers.
@@ -59,38 +62,19 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   release:
     uses: appfolio/rubygems-releaser/.github/workflows/release.yml@v1
 ```
 
-> [!TIP]
-> If your default branch is something other than `main` or `master`, configure `on.push.branches` with your default branch name.
-
-### Add the publish workflow
-
-Create a `.github/workflows/publish.yml` file in your gem repository with the following contents:
-
-```yaml
-name: Publish Gem
-
-on:
-  release:
-    types: [published]
-
-permissions:
-  contents: write
-  id-token: write
-
-jobs:
-  publish:
-    uses: appfolio/rubygems-releaser/.github/workflows/publish.yml@v1
-```
-
 > [!IMPORTANT]
 > The `id-token: write` permission is required for OIDC trusted publishing. Without it, the workflow cannot
 > authenticate with RubyGems.org.
+
+> [!TIP]
+> If your default branch is something other than `main` or `master`, configure `on.push.branches` with your default branch name.
 
 #### Monorepo / Subdirectory Support
 
@@ -104,11 +88,6 @@ If your gem lives in a subdirectory, set `working_directory` to match the packag
 jobs:
   release:
     uses: appfolio/rubygems-releaser/.github/workflows/release.yml@v1
-    with:
-      working_directory: path/to/gem
-
-  publish:
-    uses: appfolio/rubygems-releaser/.github/workflows/publish.yml@v1
     with:
       working_directory: path/to/gem
 ```
@@ -274,8 +253,7 @@ workflow does two things:
 
 1. Whenever a commit is pushed to the default branch, the `release.yml` workflow runs Release Please which
 creates (or updates an existing) release PR with changelog updates and version bumps.
-2. When a release PR is merged, Release Please creates a GitHub Release.
-3. The GitHub Release triggers the `publish.yml` workflow which builds and publishes the gem to RubyGems.org.
+2. When a release PR is merged, Release Please creates a GitHub Release and the gem is automatically built and published to RubyGems.org.
 
 ## Publishing changes to rubygems-releaser
 
