@@ -132,6 +132,7 @@ In the root of your repository, create a `release-please-config.json` with the f
       "changelog-path": "CHANGELOG.md",
       "version-file": "<path to version.rb>",
       "release-type": "ruby",
+      "include-paths": ["lib/", "exe/"],
       "bump-minor-pre-major": false,
       "bump-patch-for-minor-pre-major": false,
       "draft": false,
@@ -194,6 +195,28 @@ released a version of the gem yet, you can omit `bootstrap-sha` entirely.
 
 Replace `<path to version.rb>` with the path to your gem's `version.rb` file. Usually, this will be something like
 `lib/<gem name>/version.rb`.
+
+#### Scoping releases to gem-shipped files
+
+The `include-paths` option tells Release Please to only create or update a release PR when commits touch files that
+actually ship in the gem. Without it, commits that only change tests, CI config, or documentation will trigger
+unnecessary release PRs.
+
+Derive your `include-paths` from the `spec.files` pattern in your gemspec. For example, given:
+
+```ruby
+spec.files = Dir['**/*'].select { |f| f[%r{^(lib/|bin/|app/|config/|db/|Gemfile$|Rakefile|README.md|my_gem\.gemspec)}] }
+```
+
+A good `include-paths` would be:
+
+```json
+"include-paths": ["lib/", "bin/", "app/", "config/", "db/", "my_gem.gemspec"]
+```
+
+> [!TIP]
+> You can omit paths that rarely affect gem consumers at runtime (e.g., `README.md`, `Rakefile`, `Gemfile`) to avoid
+> release PRs for documentation-only or build-only changes.
 
 For more information on the options in this file, see [the Release Please documentation][manifest-releaser-docs].
 
