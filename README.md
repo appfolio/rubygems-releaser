@@ -8,9 +8,13 @@ Three reusable workflows are provided:
 
 | Workflow | Trigger | Description |
 |----------|---------|-------------|
-| `release.yml` | `push` to default branch | Runs Release Please to create/update release PRs |
-| `publish.yml` | `release: published` | Builds and publishes the gem to RubyGems.org |
+| `release.yml` | `push` to default branch | Runs Release Please to create/update release PRs and publishes the gem when a release PR is merged |
+| `publish.yml` | `release: published` | Standalone publish workflow for manual releases (fallback) |
 | `lint-commits.yml` | `pull_request` | Enforces Conventional Commits format on PRs |
+
+> [!NOTE]
+> `publish.yml` exists as a fallback for manually-created releases (e.g., via `gh release create` or the GitHub UI).
+> In the normal automated flow, publishing happens within `release.yml` and `publish.yml` is not triggered.
 
 ## Installation
 
@@ -23,8 +27,12 @@ Before the workflow can publish your gem, you must register a trusted publisher 
 3. Fill in the form:
    - **Owner**: your GitHub organization or user (e.g., `appfolio`)
    - **Repository**: your gem's GitHub repository name (e.g., `my_gem`)
-   - **Workflow filename**: `publish.yml`
+   - **Workflow filename**: `release.yml`
    - **Environment**: *(leave blank)*
+
+If you are using a reusable workflow from a different repository (like this one), you must also fill in:
+   - **Workflow Repository Owner**: `appfolio`
+   - **Workflow Repository Name**: `rubygems-releaser`
 
 > [!NOTE]
 > Only existing gem owners on RubyGems.org can register trusted publishers.
@@ -59,38 +67,19 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   release:
     uses: appfolio/rubygems-releaser/.github/workflows/release.yml@v1
 ```
 
-> [!TIP]
-> If your default branch is something other than `main` or `master`, configure `on.push.branches` with your default branch name.
-
-### Add the publish workflow
-
-Create a `.github/workflows/publish.yml` file in your gem repository with the following contents:
-
-```yaml
-name: Publish Gem
-
-on:
-  release:
-    types: [published]
-
-permissions:
-  contents: write
-  id-token: write
-
-jobs:
-  publish:
-    uses: appfolio/rubygems-releaser/.github/workflows/publish.yml@v1
-```
-
 > [!IMPORTANT]
 > The `id-token: write` permission is required for OIDC trusted publishing. Without it, the workflow cannot
 > authenticate with RubyGems.org.
+
+> [!TIP]
+> If your default branch is something other than `main` or `master`, configure `on.push.branches` with your default branch name.
 
 #### Monorepo / Subdirectory Support
 
@@ -104,11 +93,6 @@ If your gem lives in a subdirectory, set `working_directory` to match the packag
 jobs:
   release:
     uses: appfolio/rubygems-releaser/.github/workflows/release.yml@v1
-    with:
-      working_directory: path/to/gem
-
-  publish:
-    uses: appfolio/rubygems-releaser/.github/workflows/publish.yml@v1
     with:
       working_directory: path/to/gem
 ```
@@ -148,6 +132,7 @@ In the root of your repository, create a `release-please-config.json` with the f
       "changelog-path": "CHANGELOG.md",
       "version-file": "<path to version.rb>",
       "release-type": "ruby",
+      "include-paths": ["lib/", "exe/"],
       "bump-minor-pre-major": false,
       "bump-patch-for-minor-pre-major": false,
       "draft": false,
@@ -210,6 +195,28 @@ released a version of the gem yet, you can omit `bootstrap-sha` entirely.
 
 Replace `<path to version.rb>` with the path to your gem's `version.rb` file. Usually, this will be something like
 `lib/<gem name>/version.rb`.
+
+#### Scoping releases to gem-shipped files
+
+The `include-paths` option tells Release Please to only create or update a release PR when commits touch files that
+actually ship in the gem. Without it, commits that only change tests, CI config, or documentation will trigger
+unnecessary release PRs.
+
+Derive your `include-paths` from the `spec.files` pattern in your gemspec. For example, given:
+
+```ruby
+spec.files = Dir['**/*'].select { |f| f[%r{^(lib/|bin/|app/|config/|db/|Gemfile$|Rakefile|README.md|my_gem\.gemspec)}] }
+```
+
+A good `include-paths` would be:
+
+```json
+"include-paths": ["lib/", "bin/", "app/", "config/", "db/", "my_gem.gemspec"]
+```
+
+> [!TIP]
+> You can omit paths that rarely affect gem consumers at runtime (e.g., `README.md`, `Rakefile`, `Gemfile`) to avoid
+> release PRs for documentation-only or build-only changes.
 
 For more information on the options in this file, see [the Release Please documentation][manifest-releaser-docs].
 
@@ -274,8 +281,7 @@ workflow does two things:
 
 1. Whenever a commit is pushed to the default branch, the `release.yml` workflow runs Release Please which
 creates (or updates an existing) release PR with changelog updates and version bumps.
-2. When a release PR is merged, Release Please creates a GitHub Release.
-3. The GitHub Release triggers the `publish.yml` workflow which builds and publishes the gem to RubyGems.org.
+2. When a release PR is merged, Release Please creates a GitHub Release and the gem is automatically built and published to RubyGems.org.
 
 ## Publishing changes to rubygems-releaser
 
