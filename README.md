@@ -4,12 +4,17 @@ Reusable GitHub Actions workflows for publishing public gems to [RubyGems.org][r
 
 This workflow uses [Release Please][release-please] to automatically bump versions, generate changelogs, and publish new gem versions based on [Conventional Commits][conventional-commits].
 
-Two reusable workflows are provided:
+Three reusable workflows are provided:
 
 | Workflow | Trigger | Description |
 |----------|---------|-------------|
 | `release.yml` | `push` to default branch | Runs Release Please to create/update release PRs and publishes the gem when a release PR is merged |
+| `publish.yml` | `release: published` | Standalone publish workflow for manual releases (fallback) |
 | `lint-commits.yml` | `pull_request` | Enforces Conventional Commits format on PRs |
+
+> [!NOTE]
+> `publish.yml` exists as a fallback for manually-created releases (e.g., via `gh release create` or the GitHub UI).
+> In the normal automated flow, publishing happens within `release.yml` and `publish.yml` is not triggered.
 
 ## Installation
 
