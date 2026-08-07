@@ -12,6 +12,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      BUNDLE_APPFOLIO__JFROG__IO: ${{ secrets.BUNDLE_APPFOLIO__JFROG__IO }}
     defaults:
       run:
         working-directory: ${{ inputs.working_directory }}
