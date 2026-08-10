@@ -23,8 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
-    env:
-      BUNDLE_APPFOLIO__JFROG__IO: ${{ secrets.BUNDLE_APPFOLIO__JFROG__IO }}
+    permissions:
+      id-token: write
+      contents: write
     defaults:
       run:
         working-directory: ${{ inputs.working_directory }}
@@ -35,6 +36,8 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Setup public packages
+        uses: appfolio/public-packages/setup@v1
       - name: Setup Ruby
         uses: ruby/setup-ruby@0cb964fd540e0a24c900370abf38a33466142735 # v1.305.0
         with:
