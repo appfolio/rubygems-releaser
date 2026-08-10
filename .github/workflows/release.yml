@@ -36,8 +36,29 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - name: Setup public packages
-        uses: appfolio/public-packages/setup@v1
+      - name: Exchange OIDC token with JFrog
+        uses: jfrog/setup-jfrog-cli@v5
+        id: jfrog
+        env:
+          JF_URL: https://appfolio.jfrog.io
+        with:
+          oidc-provider-name: appfolio-github-oidc
+          oidc-audience: jfrog-appfolio
+      - name: Configure Bundler credentials for JFrog
+        shell: bash
+        run: |
+          TOKEN="${{ steps.jfrog.outputs.oidc-token }}"
+          if [ -z "$TOKEN" ]; then
+            echo "::error::JFrog OIDC token exchange failed"
+            exit 1
+          fi
+          echo "::add-mask::${TOKEN}"
+          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null || true)
+          SUB=$(echo "$PAYLOAD" | jq -r '.sub // empty' 2>/dev/null || true)
+          if [ -n "$SUB" ]; then
+            ENCODED_SUB=$(printf '%s' "$SUB" | sed 's/\//%2F/g; s/@/%40/g; s/:/%3A/g; s/\[/%5B/g; s/\]/%5D/g')
+            echo "BUNDLE_APPFOLIO__JFROG__IO=${ENCODED_SUB}:${TOKEN}" >> $GITHUB_ENV
+          fi
       - name: Setup Ruby
         uses: ruby/setup-ruby@0cb964fd540e0a24c900370abf38a33466142735 # v1.305.0
         with:
