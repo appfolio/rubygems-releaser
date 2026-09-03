@@ -1,0 +1,65 @@
+name: Check Upgrade Docs
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-upgrade-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Fetch commit history
+        uses: rmacklin/fetch-through-merge-base@v0
+        timeout-minutes: 5
+
+      - name: Check for breaking changes without UPGRADE.md update
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+
+          range="origin/${BASE_REF}..${HEAD_REF}"
+
+          breaking_commits=$(git log --format='%s' "$range" | grep -E '^[a-z]+(\(.+\))?!:' || true)
+
+          if [ -z "$breaking_commits" ]; then
+            echo "No breaking changes detected. Skipping UPGRADE.md check."
+            exit 0
+          fi
+
+          echo "Breaking changes detected:"
+          echo "$breaking_commits"
+          echo ""
+
+          upgrade_changed=$(git diff --name-only "origin/${BASE_REF}...${HEAD_REF}" | grep -c '^UPGRADE.md$' || true)
+
+          if [ "$upgrade_changed" -eq 0 ]; then
+            echo "::error::This PR contains breaking changes but UPGRADE.md was not added or updated."
+            echo ""
+            echo "Please add an entry to UPGRADE.md describing what consumers need to"
+            echo "change when upgrading to the new major version."
+            echo ""
+            echo "If UPGRADE.md does not exist yet, create it with a section like:"
+            echo ""
+            echo "  # GemName"
+            echo ""
+            echo "  ## Upgrading from X.x to Y"
+            echo ""
+            echo "  Describe what changed and how consumers should update their code."
+            exit 1
+          fi
+
+          echo "UPGRADE.md was updated. Check passed."
