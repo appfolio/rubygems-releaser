@@ -3,7 +3,9 @@ kind: Component
 metadata:
   name: rubygems-releaser
   description: "Reusable GitHub Actions workflows for publishing public gems to RubyGems.org via trusted publishing, using Release Please for versioning and changelogs"
+  tags:
+    - github-actions
 spec:
-  type: tool
+  type: library
   lifecycle: stable
   owner: CODEOWNERS
